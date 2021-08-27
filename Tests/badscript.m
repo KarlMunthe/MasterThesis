@@ -1,13 +1,16 @@
 clear
 
-m = 128;
+m = 20;
 
 %h = 1/(m-1); % grid size.
-k = 1e-4; % time step
+k = 1e-6; % time step
 
-x_end = 2*pi;
-t_end = 0.5*pi;
+x_end = 1;
+t_end = 1;
 
+epsilon = 0.01;
+
+%{
 syms ex te;
 %sol = sin(ex - te);
 sol = cos(ex + te);
@@ -18,6 +21,7 @@ D = A + B - C;
 
 G = matlabFunction(D);
 sol = matlabFunction(sol);
+%}
 
 %[W1, error1, h1, CFL1] = HeatTest(m, k, sol, G, t_end);
 %[W2, error2, h2, CFL2] = HeatTest(2*m-1, k, sol, G, t_end);
@@ -25,8 +29,12 @@ sol = matlabFunction(sol);
 %[W1, error1, h1] = PeriodicAdvectionTest(m, k, sol, t_end);
 %[W2, error2, h2] = PeriodicAdvectionTest(2*m - 1, k, sol, t_end);
 
-[W1, error1, h1, CFL1] = PeriodicBurgersDiffusion(m, G, sol, t_end, k);
-[W2, error2, h2, CFL2] = PeriodicBurgersDiffusion(2*m-1, G, sol, t_end, k);
+%[W1, error1, h1, CFL1] = PeriodicBurgersDiffusion(m, G, sol, t_end, k);
+%[W2, error2, h2, CFL2] = PeriodicBurgersDiffusion(2*m-1, G, sol, t_end, k);
+tic
+W = SpectralBurgersDiffusion(m, epsilon, t_end, x_end, k);
+toc
+%%
 
 %w1 = W1(:,end);
 %w2 = W2(:,end);

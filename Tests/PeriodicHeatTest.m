@@ -4,8 +4,10 @@ function [W, CFL, error, h] = PeriodicHeatTest(x_end, m, k, sol, t_end, R1)
 
 t = 0:k:t_end;
 
-h = 2*pi/m;    %individual space points on the grid
+h = 1/m;    %individual space points on the grid
 x = h*(1:m);
+
+s = 2*pi/x_end;
 
 CFL = k/h;
 
@@ -13,7 +15,7 @@ CFL = k/h;
 
 %[~, ~, ~, Q2] = PeriodicD2(m, h);
 
-Q2 = SpectralD2(m, h);
+Q2 = SpectralD2(m, s);
 
 %initial condition
 f = sol(x, 0)';

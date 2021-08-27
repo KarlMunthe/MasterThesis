@@ -1,27 +1,30 @@
 clear
 
-addpath('/Users/karlmunthe/Documents/UiB/UiB Master Oppgave/Code/Difference Operators')
+addpath('/Users/karlmunthe/Documents/UiB/UiB Master Oppgave/Code/gitMaster/Difference Operators')
 
 %h = 1/(m-1); % grid size.
-k = 1e-4; % time step
+k = 1e-6; % time step
 
-x_end = 2*pi;
-t_end = 1;
+x_end = 1;
+t_end = 0.01;
  
-c_p = 5240;     %heat capacity at constant pressure
-c_V = 3157;     %heat capacity at constant volume
+
+c_V = 1;     %heat capacity at constant volume
+c_p = 2;     %heat capacity at constant pressure
+
 
 %%%
-%%%ADVECTION EQUATION WITH . CHEBYSHEV GRID
+%%%ADVECTION EQUATION WITH
 %%%
+%{
 
 syms ex te
 
-u = cos(ex - te);
+u = cos(2*pi*ex - 2*pi*te);
 
 sol = matlabFunction(u);
 
-N = 2;
+N = ;
 CFL_list = zeros(1,N);
 error_list = zeros(1,N);
 h_list = zeros(1,N);
@@ -37,21 +40,34 @@ for i = 0:N-1
     error_list(i+1) = error;
     h_list(i+1) = h;
     
-    m = m + 10;
+    m = 2*m-1;
     
 end
 
+%{
 for i = 1:N-1
     p_list(i) = log(error_list(i+1)/error_list(i))/log(h_list(i+1)/h_list(i));
 end
+%}
+for i = 1:N-1
+    p_list(i) = log2(error_list(i)/error_list(i+1));
+end
 p_list
 error_list
-%}
 
+
+x = linspace(0, x_end, (m+1)/2 + 1);
+plot(x, W(:,end))
+hold on
+plot(x, sol(x,t_end))
+legend('numerical', 'analytical')
+
+%{
 f1 = figure;
 time1 = 0:k:t_end;
-x = linspace(0, x_end, m-10+1);
+x = linspace(0, x_end, (m+1)/2 + 1);
 mesh(x, time1, W'), xlabel('x'), ylabel('t'), zlabel('u')
+%}
 %}
 
 %%%
@@ -60,8 +76,8 @@ mesh(x, time1, W'), xlabel('x'), ylabel('t'), zlabel('u')
 %{
 %MANUFACTURED SOLUTION
 syms ex te
-rho = sin(ex + te);
-u = cos(ex + te);
+rho = sin(2*pi*(ex + te));
+u = cos(2*pi*(ex + te));
 
 A1 = diff(rho, te);
 B1 = diff(rho, ex, 2);
@@ -112,8 +128,8 @@ mesh(x, time1, W'), xlabel('x'), ylabel('t'), zlabel('u')
 %{
 %MANUFACTURED SOLUTION
 syms ex te
-rho = sin(ex + te) + 2;
-u = cos(ex + te) + 2;
+rho = sin(2*pi*(ex + te)) + 2;
+u = cos(2*pi*(ex + te)) + 2;
 epsilon = 1e-6;
 
 A1 = diff(u, te);
@@ -125,12 +141,12 @@ sol = matlabFunction(u);
 source_term = matlabFunction(source_term);
 
 %Normal FDM schemes
-N = 6;
+N = 3;
 CFL_list = zeros(1,N);
 error_list = zeros(1,N);
 h_list = zeros(1,N);
 p_list = zeros(1,N-1);
-m = 10;
+m = 11;
 
 for i = 0:N-1
     
@@ -149,6 +165,7 @@ for i = 1:N-1
     p_list(i) = log(error_list(i+1)/error_list(i))/log(h_list(i+1)/h_list(i));
 end
 p_list
+error_list
 
 f1 = figure;
 time1 = 0:k:t_end;
@@ -163,8 +180,8 @@ mesh(x, time1, W'), xlabel('x'), ylabel('t'), zlabel('u')
 %{
 %MANUFACTURED SOLUTION
 syms ex te
-rho = sin(2*pi*ex + 2*pi*te);
-u = cos(2*pi*ex + 2*pi*te);
+rho = sin(2*pi*(ex + te));
+u = cos(2*pi*(ex + te));
 
 A1 = diff(rho, te);
 B1 = diff(rho*u, ex);
@@ -176,7 +193,7 @@ rho = matlabFunction(rho);
 u = matlabFunction(u);
 R1 = matlabFunction(R1);
 
-N = 6;
+N = 3;
 CFL_list = zeros(1,N);
 error_list = zeros(1,N);
 h_list = zeros(1,N);
@@ -185,7 +202,7 @@ m = 10;
 
 for i = 0:N-1
     
-    [W, CFL, error, h] = PeriodicVariableAdvectionTestWithPade(m, t_end, x_end, k, u, R1,  sol);
+    [W, CFL, error, h] = PeriodicAdvectionTest(m, k, sol, x_end, t_end);
     
     Wi = W;
     CFL_list(i+1) = CFL;
@@ -200,6 +217,7 @@ for i = 1:N-1
     p_list(i) = log(error_list(i+1)/error_list(i))/log(h_list(i+1)/h_list(i));
 end
 p_list
+error_list
 %}
 
 %%%
@@ -383,17 +401,17 @@ legend('simulation', 'analytical')
 %%%
 %%%FULL COUPLED COMPRESSIBLE NS EQUATIONS
 %%%
-%{
+
 %MANUFACTURED SOLUTION
 R = c_p - c_V;
 gamma = c_p/c_V;
 kappa = 1;
 syms ex te
-rho = sin(ex + te) + 2;
-mom = (sin(ex + te) + 2)^2;
-E = cos(ex + te) + 2;
+rho = cos(2*pi*(ex + te)) + sin(2*pi*(ex + te)) + 2;
+mom = cos(2*pi*(ex + te)) - sin(2*pi*(ex + te));
+E = -cos(2*pi*(ex + te)) + sin(2*pi*(ex + te));
 p = R/c_V*(E - mom.^2./(2*rho));
-T = p/R;
+T = p/(rho*R);
 
 epsilon = 1;
 
@@ -425,40 +443,53 @@ xxx = 0:1/(m-1):x_end;
 plot(xxx, D1(xxx, 0))
 %}
 
-%Normal FDM schemes
-N = 6;
+N = 5;
 CFL_list = zeros(1,N);
-error_list = zeros(1,N);
+RHO_error_list = zeros(1,N);
+MOM_error_list = zeros(1,N);
+E_error_list = zeros(1,N);
 h_list = zeros(1,N);
-p_list = zeros(1,N-1);
-m = 4;
+
+RHO_p_list = zeros(1,N-1);
+MOM_p_list = zeros(1,N-1);
+E_p_list = zeros(1,N-1);
+m = 11;
 
 for i = 0:N-1
     
-    [W, CFL, error, h] = SpectralCompressibleNSTest(m, epsilon, t_end, x_end, k, c_p, c_V, kappa, rho_sol, mom_sol, E_sol, R1, R2, R3);
+    [CFL, RHO_error,  MOM_error , E_error, h] = SpectralCompressibleNSTest(m, epsilon, t_end, x_end, k, c_p, c_V, kappa, rho_sol, mom_sol, E_sol, R1, R2, R3);
     
-    Wi = W;
     CFL_list(i+1) = CFL;
-    error_list(i+1) = error;
+    RHO_error_list(i+1) = RHO_error;
+    MOM_error_list(i+1) = MOM_error;
+    E_error_list(i+1) = E_error;
     h_list(i+1) = h;
     
-    m = m + 2;
+    m = 2*m - 1;
     
 end
 
 
 for i = 1:N-1
-    p_list(i) = log(error_list(i+1)/error_list(i))/log(h_list(i+1)/h_list(i));
+    RHO_p_list(i) = log(RHO_error_list(i+1)/RHO_error_list(i))/log(h_list(i+1)/h_list(i));
+    MOM_p_list(i) = log(MOM_error_list(i+1)/MOM_error_list(i))/log(h_list(i+1)/h_list(i));
+    E_p_list(i) = log(E_error_list(i+1)/E_error_list(i))/log(h_list(i+1)/h_list(i));
+
 end
-p_list
 
-error_list
+%RHO_p_list
+%MOM_p_list
+%E_p_list
+
+NS_RHO_error_list = RHO_error_list
+NS_MOM_error_list = MOM_error_list
+NS_E_error_list = E_error_list
 %CFL_list
-
-
+%%
+%{
 f1 = figure;
 time1 = 0:k:t_end;
-x = linspace(0, x_end, m-2+1);
+x = linspace(0, x_end, (m+1)/2+1);
 mesh(x, time1, W'), xlabel('x'), ylabel('t'), zlabel('u')
 %}
 
@@ -474,15 +505,14 @@ legend('simulation', 'analytical')
 %%%
 %%%FULL COUPLED COMPRESSIBLE NSS EQUATIONS
 %%%
-%{
+
 %MANUFACTURED SOLUTION
 R = c_p - c_V;
 gamma = c_p/c_V;
 syms ex te
-rho = sin(ex + te) + 2;
-mom = (sin(ex + te) + 2)^2;
-%p = rho^gamma;
-E = cos(ex + te) + 2; 
+rho = cos(2*pi*(ex + te)) + sin(2*pi*(ex + te)) + 2;
+mom = cos(2*pi*(ex + te)) - sin(2*pi*(ex + te));
+E = -cos(2*pi*(ex + te)) + sin(2*pi*(ex + te));
 p = R/c_V*(E-mom^2/(2*rho));
 
 nu = 1/rho;
@@ -510,38 +540,52 @@ R1 = matlabFunction(R1);
 R2 = matlabFunction(R2);
 R3 = matlabFunction(R3);
 
-N = 6;
+N = 5;
 CFL_list = zeros(1,N);
-error_list = zeros(1,N);
+RHO_error_list = zeros(1,N);
+MOM_error_list = zeros(1,N);
+E_error_list = zeros(1,N);
 h_list = zeros(1,N);
 p_list = zeros(1,N-1);
-m = 10;
+m = 11;
 
 for i = 0:N-1
     
-    [W, CFL, error, h] = SpectralCompressibleNSSTest(m, t_end, x_end, k, c_p, c_V, rho_sol, mom_sol, E_sol, R1, R2, R3);
+    [CFL, RHO_error,  MOM_error , E_error, h] = SpectralCompressibleNSSTest(m, t_end, x_end, k, c_p, c_V, rho_sol, mom_sol, E_sol, R1, R2, R3);
     
-    Wi = W;
     CFL_list(i+1) = CFL;
-    error_list(i+1) = error;
+    RHO_error_list(i+1) = RHO_error;
+    MOM_error_list(i+1) = MOM_error;
+    E_error_list(i+1) = E_error;
     h_list(i+1) = h;
     
-    m = m + 10;
+    m = 2*m-1;
     
 end
 
-
+%{
 for i = 1:N-1
     p_list(i) = log(error_list(i+1)/error_list(i))/log(h_list(i+1)/h_list(i));
 end
-p_list
+%}
 
-error_list
+%{
+for i = 1:N-1
+    p_list(i) = log2(error_list(i)/error_list(i+1));
+end
+%}
+
+%p_list
+
+NSS_RHO_error_list = RHO_error_list
+NSS_MOM_error_list = MOM_error_list
+NSS_E_error_list = E_error_list
 %CFL_list
 
+%{
 f1 = figure;
 time1 = 0:k:t_end;
-x = linspace(0, x_end, m-10+1);
+x = linspace(0, x_end, (m+1)/2 + 1);
 mesh(x, time1, W'), xlabel('x'), ylabel('t'), zlabel('u')
 %}
 %}
@@ -589,7 +633,7 @@ CFL_list = zeros(1,N);
 error_list = zeros(1,N);
 h_list = zeros(1,N);
 p_list = zeros(1,N-1);
-m = 16;
+m = 4;
 
 for i = 0:N-1
     
@@ -607,4 +651,5 @@ for i = 1:N-1
     p_list(i) = log(error_list(i+1)/error_list(i))/log(h_list(i+1)/h_list(i));
 end
 p_list
+error_list
 %}

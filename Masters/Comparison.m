@@ -1,36 +1,72 @@
 clear
 
-addpath('/Users/karlmunthe/Documents/UiB/UiB Master Oppgave/Code/Difference Operators')
+addpath('/Users/karlmunthe/Documents/UiB/UiB Master Oppgave/Code/gitMaster/Difference Operators')
 
-%Gas properties and Initial and Boundary data 
+%Gas properties
+%Hydrogen values
+%{
+mu = 8.90e-06;
+kappa = 0.1819;
+c_p = 14.32e+03;
+c_V = 10.16e+03;
+%}
+
+%Oxygen values
+
+mu = 20.64e-06;
+kappa = 26.58e-03;
+c_p = 915;
+c_V = 659;
+%}
+
 %Helium values
-mu = 1.87e-5;   %coefficient of viscosity
+%{
+mu = 20.64e-06;   %coefficient of viscosity
+kappa = 0.1357; %thermal conductivity 
 c_V = 3157;     %heat capacity at constant volume
 c_p = 5240;     %heat capacity at constant pressure
-R = 2077.1;     %gas constant
-kappa = 0.1357;     %thermal conductivity 
-rho_0 = 0.1786;  %background density at STP
-rho = @(x) rho_0 + 2e-04*(sin(2*pi*x));   %reynolds decomposed pressure ion
+%}
 
+
+%Gas constant and heat capacity
+R = c_p - c_V;
 gamma = c_p/c_V;
-p_const = 10^5/(rho_0^gamma);
-p_0 = p_const*rho_0^gamma;
+
+%Standard temperature and pressure (STP)
+T_0 = 293.15;
+p_0 = 1e+05;
+
+rho_0 = p_0/(R*T_0);  %background density at STP
+rho = @(x) rho_0 + 1e-02*(sin(2*pi*x));   %reynolds decomposed pressure
+%u = @(x) 1e-01*(sin(2*pi*x));
+
 nu_0 = mu/rho_0;
-T_0 = p_0/(R*rho_0);
-c = sqrt(gamma*p_0/rho_0);    %speed of sound
-omega = 2*pi;
+c = sqrt(gamma*R*T_0);    %speed of sound
+lambda = 1;        %wave length
+omega = 2*pi*c;
 eta = 0;
 
+%Coefficient of absorption as a function of time
 
-PropCoeffN_S = omega^2/(2*rho_0)*((4/3*mu + eta) + (kappa/c_V)*(1/c_V-1/c_p)); %page 301 in Landou & Lipschitz
-PropCoeffN_S_S = omega^2/(2*rho_0)*(mu + c_V*mu*(gamma-1)*(T_0/c^2 + 1/c_p));
+PropCoeffNS = omega^2/(2*rho_0*c^2)*((4/3*mu + eta) + (kappa/c_V)*(1/c_V-1/c_p)); %page 301 in Landou & Lipschitz
+PropCoeffNSS = omega^2/(2*rho_0*c^2)*(mu + c_V*mu*(gamma-1)*(T_0/c^2 + 1/c_p));
+%}
 
-m = 6;
+%Coefficient of absorption as a function of space
+%{
+PropCoeffNS = omega^2/(2*rho_0*c^3)*((4/3*mu + eta) + (kappa/c_V)*(1/c_V-1/c_p)); %page 301 in Landou & Lipschitz
+PropCoeffNSS = omega^2/(2*rho_0*c^3)*(mu + c_V*mu*(gamma-1)*(T_0/c^2 + 1/c_p));
+%}
 
-k = 1e-6; % time step
+article = PropCoeffNS*lambda;
+article2 = PropCoeffNSS*lambda;
+
+m = 11;
+
+k = 1e-06; % time step
 
 x_end = 1;
-t_end = 100;
+t_end = 0.13; %0.63; %0.33 % 1.3; %c ~ 1000
 
 %x = 0:h:x_end;    %individual space points on the grid
 
@@ -86,13 +122,145 @@ x = h*(1:m);
 
 s = 2*pi;
 
-CFL = k/(h^2);
+%[Q1, ~,~,~] = PeriodicD0(m,h)
 
 Q1 = SpectralD0(m, s);
 Q2 = SpectralD2(m, s);
 
-%[NS_Work] = SpectralNS(m, x, t_end, k, c_p, c_V, kappa, mu, rho, Q1, Q2);
-[NSS_Work] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho, Q1);
+%[NSS_Work] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho_0, T_0, u, Q1);
+[NSS_Work] = SpectralNSStrash(m, x, t_end, k, c_p, c_V, mu, rho, p_0, Q1);
+
+[NS_Work] = SpectralNS(m, x, t_end, k, c_p, c_V, kappa, mu, rho, p_0, Q1, Q2);
+
+x = [0, x];
+
+%Conservative check
+%{
+x = [0, x];
+%{
+NS_Rho  = NS_Rho(1:end-1,:);
+NS_Mom  = NS_Mom(1:end-1,:);
+NS_Ene  = NS_Ene(1:end-1,:);
+%}
+
+NS_Rho2 = NS_Rho(:,1:round(end/2));
+NS_Mom2 = NS_Mom(:,1:round(end/2));
+NS_Ene2 = NS_Ene(:,1:round(end/2));
+
+NS_int_rho1 = trapz(x, NS_Rho(:,end));
+NS_int_mom1 = trapz(x, NS_Mom(:,end));
+NS_int_ene1 = trapz(x, NS_Ene(:,end));
+
+NS_int_rho2 = trapz(x, NS_Rho2(:,end));
+NS_int_mom2 = trapz(x, NS_Mom2(:,end));
+NS_int_ene2 = trapz(x, NS_Ene2(:,end));
+
+NS_diff_int_rho1 = abs(NS_int_rho1 - NS_int_rho2);
+NS_diff_int_mom1 = abs(NS_int_mom1 - NS_int_mom2);
+NS_diff_int_ene1 = abs(NS_int_ene1 - NS_int_ene2);
+
+%{
+NSS_Rho  = NSS_Rho(1:end-1,:);
+NSS_Mom  = NSS_Mom(1:end-1,:);
+NSS_Ene  = NSS_Ene(1:end-1,:);
+%}
+
+NSS_Rho2 = NSS_Rho(:,1:round(end/2));
+NSS_Mom2 = NSS_Mom(:,1:round(end/2));
+NSS_Ene2 = NSS_Ene(:,1:round(end/2));
+
+NSS_int_rho1 = trapz(x, NSS_Rho(:,end));
+NSS_int_mom1 = trapz(x, NSS_Mom(:,end));
+NSS_int_ene1 = trapz(x, NSS_Ene(:,end));
+
+NSS_int_rho2 = trapz(x, NSS_Rho2(:,end));
+NSS_int_mom2 = trapz(x, NSS_Mom2(:,end));
+NSS_int_ene2 = trapz(x, NSS_Ene2(:,end));
+
+NSS_diff_int_rho1 = abs(NSS_int_rho1 - NSS_int_rho2);
+NSS_diff_int_mom1 = abs(NSS_int_mom1 - NSS_int_mom2);
+NSS_diff_int_ene1 = abs(NSS_int_ene1 - NSS_int_ene2);
+%}
+
+%Error check
+%{
+NSS_Work = 0.5*NSS_Mom.^2./NSS_Rho;
+NS_Work = 0.5*NS_Mom.^2./NS_Rho;
+
+N = 4;
+h1 = h;
+NSS_Rho_list = [NSS_Rho(1:end-1,end), zeros(m,N-1)];
+NSS_Mom_list = [NSS_Mom(1:end-1,end), zeros(m,N-1)];
+NSS_Ene_list = [NSS_Ene(1:end-1,end), zeros(m,N-1)];
+NSS_Work_list = [NSS_Work(1:end-1,end), zeros(m, N-1)];
+
+NS_Rho_list = [NS_Rho(1:end-1,end), zeros(m,N-1)];
+NS_Mom_list = [NS_Mom(1:end-1,end), zeros(m,N-1)];
+NS_Ene_list = [NS_Ene(1:end-1,end), zeros(m,N-1)];
+NS_Work_list = [NS_Work(1:end-1,end), zeros(m, N-1)];
+
+for i = 1:N-1
+    
+m = 2*m;
+
+h = x_end/m;    %individual space points on the grid
+x = h*(1:m);
+
+Q1 = SpectralD0(m, s);
+Q2 = SpectralD2(m, s);
+    
+[NSS_Rho, NSS_Mom, NSS_Ene] = SpectralNSStrash(m, x, t_end, k, c_p, c_V, mu, rho, p_0, Q1);
+NSS_Rho_list(:, i+1) = NSS_Rho(1:2^i:end-1, end);%; NSS_Rho(end,end)];
+NSS_Mom_list(:, i+1) = NSS_Mom(1:2^i:end-1, end);%; NSS_Mom(end,end)];
+NSS_Ene_list(:, i+1) = NSS_Ene(1:2^i:end-1, end);%; NSS_Ene(end,end)];
+NSS_Work_list(:, i+1) = 0.5*NSS_Mom(1:2^i:end-1, end).^2./NSS_Rho(1:2^i:end-1, end);
+
+[NS_Rho, NS_Mom, NS_Ene] = SpectralNS(m, x, t_end, k, c_p, c_V, kappa, mu, rho, p_0, Q1, Q2);
+NS_Rho_list(:, i+1) = NS_Rho(1:2^i:end-1, end);%; NS_Rho(end,end)];
+NS_Mom_list(:, i+1) = NS_Mom(1:2^i:end-1, end);%; NS_Mom(end,end)];
+NS_Ene_list(:, i+1) = NS_Ene(1:2^i:end-1, end);%; NS_Ene(end,end)];
+NS_Work_list(:, i+1) = 0.5*NS_Mom(1:2^i:end-1, end).^2./NS_Rho(1:2^i:end-1, end);
+
+end
+
+NSS_Rho_error = zeros(1, N-1);
+NSS_Mom_error = zeros(1, N-1);
+NSS_Ene_error = zeros(1, N-1);
+NSS_Work_error = zeros(1, N-1);
+
+NS_Rho_error = zeros(1, N-1);
+NS_Mom_error = zeros(1, N-1);
+NS_Ene_error = zeros(1, N-1);
+NS_Work_error = zeros(1, N-1);
+
+
+for i = 1:N-1
+    NSS_Rho_error(i) = sum(sqrt(h1*(NSS_Rho_list(:,end) - NSS_Rho_list(:,i)).^2));
+    NSS_Mom_error(i) = sum(sqrt(h1*(NSS_Mom_list(:,end) - NSS_Mom_list(:,i)).^2));
+    NSS_Ene_error(i) = sum(sqrt(h1*(NSS_Ene_list(:,end) - NSS_Ene_list(:,i)).^2));
+    NSS_Work_error(i) = sum(sqrt(h1*(NSS_Work_list(:,end) - NSS_Work_list(:,i)).^2));
+    
+    NS_Rho_error(i) = sum(sqrt(h1*(NS_Rho_list(:,end) - NS_Rho_list(:,i)).^2));
+    NS_Mom_error(i) = sum(sqrt(h1*(NS_Mom_list(:,end) - NS_Mom_list(:,i)).^2));
+    NS_Ene_error(i) = sum(sqrt(h1*(NS_Ene_list(:,end) - NS_Ene_list(:,i)).^2));
+    NS_Work_error(i) = sum(sqrt(h1*(NS_Work_list(:,end) - NS_Work_list(:,i)).^2));
+
+end
+
+NSS_Rho_error = NSS_Rho_error/mean(abs(NSS_Rho(:, end)));
+NSS_Mom_error = NSS_Mom_error/mean(abs(NSS_Mom(:, end)));
+NSS_Ene_error = NSS_Ene_error/mean(abs(NSS_Ene(:, end)));
+NSS_Work_error = NSS_Work_error/mean(abs(NSS_Work(:, end)));
+
+NS_Rho_error = NS_Rho_error/mean(abs(NS_Rho(:, end)));
+NS_Mom_error = NS_Mom_error/mean(abs(NS_Mom(:, end)));
+NS_Ene_error = NS_Ene_error/mean(abs(NS_Ene(:, end)));
+NS_Work_error = NS_Work_error/mean(abs(NS_Work(:, end)));
+
+NSS_Work_error
+NS_Work_error
+
+%[NS_Work] = SpectralNS(m, x, t_end, k, c_p, c_V, kappa, mu, rho_0, T_0, u, Q1, Q2);
 
 %{
 [Q1,~,~,~] = PeriodicD0(m,h);
@@ -116,17 +284,40 @@ Q2 = SpectralD2(m, s);
 [NSS_Work5] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho, Q1);
 %[NS_Work] = NS_feil(m, x, t_end, k, mu, c_V, c_p, R, kappa, Q1, Q2, rho)
 %}
-x = [0, x];
-time = linspace(0, t_end, size(NSS_Work,2));
 
-hold on
-plot(time, NSS_Work(1,:))
+%{
+time = linspace(0, t_end, size(NS_Rho,2));
+
 f1 = figure;
-plot(time, NSS_Work(1,:))
-%f2 = figure;
-%mesh(x, time, NS_Work')
+plot(time, NS_Rho(1,:))
+title('density at boundary')
+f2 = figure;
+plot(time, NS_Mom(1,:))
+title('momentum at boundary')
+f3 = figure;
+plot(time, NS_Ene(1,:))
+title('energy at boundary')
+f4 = figure;
+mesh(x, time(round(9*end/10):end), NS_Rho(:,round(9*end/10):end)')
+title('last 10% of density')
+f5 = figure;
+mesh(x, time(round(9*end/10):end), NS_Mom(:,round(9*end/10):end)')
+title('last 10% of momentum')
+f4 = figure;
+mesh(x, time(round(9*end/10):end), NS_Ene(:,round(9*end/10):end)')
+title('last 10% of energy')
 
-[NSS_Work] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho, Q1);
+%plot(x, Mom(:,end))
+%}
+%}
+
+%%
+
+
+%NSS_Work = 0.5*NSS_Mom.^2./NSS_Rho;
+%NS_Work = 0.5*NS_Mom.^2./NS_Rho;
+
+%[NSS_Work] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho, Q1);
 
 %[NSS_Work] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho, Q1);
 %[NSS_Work] = E2(m, x, t_end, k, mu, alpha, c_V, c_p, R, Q1, rho);
@@ -447,13 +638,21 @@ grid on
 
 
 %Comparison of decay of energy
-x = [0, x];
 %Getting max work amplitude data from Navier-Stokes-Svärd 
 int_NSS_Work = trapz(x, NSS_Work);
 int_NSS_Work = nonzeros(int_NSS_Work);
 int_NSS_Work = int_NSS_Work(1:round(length(int_NSS_Work), -1));
 
-int_NSS_Work_plot = reshape(int_NSS_Work, [], t_end);
+%t_end*1e+02/1.3 for p_0 = 10^5, t_end*1e+02/3.3 for p_0 = 10^3, t_end*1e+02/6.3
+int_NSS_Work_plot = reshape(int_NSS_Work, [], 100);
+
+[~, max_pos_NSS] = max(int_NSS_Work_plot);
+col_size = size(int_NSS_Work_plot, 1);
+for i = 0:length(max_pos_NSS)-1
+    max_pos_NSS(i+1) = col_size*i*k + max_pos_NSS(i+1)*k;
+end
+max_pos_NSS = max_pos_NSS*2;
+
 int_NSS_Work_plot = max(int_NSS_Work_plot);
 logint_NSS_Work_plot = log(int_NSS_Work_plot);
 t2NSS = linspace(0, t_end, length(logint_NSS_Work_plot));
@@ -477,7 +676,17 @@ int_NS_Work = trapz(x, NS_Work);
 int_NS_Work = nonzeros(int_NS_Work);
 int_NS_Work = int_NS_Work(1:round(length(int_NS_Work), -1));
 
-int_NS_Work_plot = reshape(int_NS_Work, [], t_end);
+%t_end*1e+02/1.3 for p_0 = 10^5, t_end*1e+02/3.3 for p_0 = 10^3,
+%t_end*1e+02/6.3 for t_end = 10^4
+int_NS_Work_plot = reshape(int_NS_Work, [], 100);
+
+[~, max_pos_NS] = max(int_NS_Work_plot);
+col_size = size(int_NS_Work_plot, 1);
+for i = 0:length(max_pos_NS)-1
+    max_pos_NS(i+1) = col_size*i*k + max_pos_NS(i+1)*k;
+end
+max_pos_NS = max_pos_NS*2;
+
 int_NS_Work_plot = max(int_NS_Work_plot);
 logint_NS_Work_plot = log(int_NS_Work_plot);
 t2NS = linspace(0, t_end, length(logint_NS_Work_plot));
@@ -488,29 +697,33 @@ LeastSquared_NS_Work = exp(Linear_NS_Work(2))*exp(Linear_NS_Work(1)*t2NS);
 %EnergyDecayAmp = (LeastSquared_NSS_Work(1) + LeastSquared_NS_Work(1))/2;
 
 %Theoretical expectation for decay of Navier-Stokes sound waves
-EnergyDecay_NS = LeastSquared_NS_Work(1)*exp(-2*PropCoeffN_S*t2NS);
+EnergyDecay_NS = LeastSquared_NS_Work(1)*exp(-2*PropCoeffNS*t2NS);
 
 %Theoretical expectation for decay pf Navier-Stokes-Svärd sound waves
-EnergyDecay_NSS = LeastSquared_NSS_Work(1)*exp(-2*PropCoeffN_S_S*t2NSS);
+EnergyDecay_NSS = LeastSquared_NSS_Work(1)*exp(-2*PropCoeffNSS*t2NSS);
 
 t2 = linspace(0, t_end, length(int_NSS_Work));
 
 %plots
-tiledlayout(2,1)
-nexttile
+f1 = figure;
 hold on
 plot(t2, int_NS_Work);% 'color', 'blue')
 plot(t2NS, LeastSquared_NS_Work, 'color', 'cyan')
 plot(t2, int_NSS_Work)%, 'color', 'yellow')
 plot(t2NSS, LeastSquared_NSS_Work, 'color', 'red')
-legend('NS', 'NS least squared', 'NSS', 'NSS least squared')
+t3 = t2(1:t_end*1e+03/1.3:end);
+plot(max_pos_NS, int_NS_Work_plot, '*')
+plot(max_pos_NSS, int_NSS_Work_plot, '*')
+legend('NS', 'NS least squared', 'NSS', 'NSS least squared', 'NS data point', 'NSS data point')
 xlabel('t [sec]')
 ylabel('Work')
-title('NS vs. NSS, step size = 1e-6, ')
+title('Work for NS and NSS, step size = 1e-6, t_end = 1.3 sec, ~ 1k waves')
 grid on
 
-nexttile
+
+f2 = figure;
 hold on
+ylim([0, inf])
 plot(t2NS, LeastSquared_NS_Work, 'color', 'cyan')
 plot(t2NS, EnergyDecay_NS);
 plot(t2NSS, LeastSquared_NSS_Work, 'color', 'red')
@@ -521,6 +734,14 @@ xlabel('t [sec]')
 ylabel('Work')
 grid on
 %}
+
+%Theoretical_NS_coefficient = PropCoeffNS*2
+Numerical_NS_coefficient = -Linear_NS_Work(1)
+
+%Theoretical_NSS_coefficient = PropCoeffNSS*2
+Numerical_NSS_coefficient = -Linear_NSS_Work(1)
+%}
+
 
 %change in frequency
 %{

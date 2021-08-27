@@ -1,27 +1,38 @@
-function [Rho] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho, Q1)
-
-
-%h = 1/(m-1);       %space step
+function [Work] = SpectralNSS(m, x, t_end, k, c_p, c_V, mu, rho_0, T_0, u, Q1)
 
 t = 0:k:t_end;
 
-%Initial conditions and Primitive variables
+%Thermodynamic variables
 R = c_p - c_V;
 gamma = c_p/c_V;
 
-rho = (rho(x))';
-p = rho.^(gamma);
-v = zeros(m,1);
-mom = rho.*v;
-T = p./(R*rho);
-e = c_V*T;
-E = e.*rho+0.5*rho.*(v.^2);
+%rho = (rho(x))';
+%p = p_0*rho.^(gamma);
+%p = c^2/gamma*rho_0;
+%T = p./(R*rho);
 
-nr_points_save = 100;
+%initial conditions
+rho_0 = ones(length(x),1).*rho_0;
+u_0 = u(x)';
+mom_0 = rho_0.*u_0;
+e_0 = c_V*T_0;
+E_0 = e_0.*rho_0+0.5*rho_0.*(u_0.^2);
 
-%Work = [mom.^2./(2*rho), zeros(m, ceil(t_end/k/nr_points_save)-1)];
-Rho = [rho, zeros(m, ceil(t_end/k/nr_points_save)-1)];
+%every nth time step is saved
+nr_points_save = 10;
 
+%saving memory for variables to save
+Work = [mom_0.^2./(2*rho_0), zeros(m, ceil(t_end/k/nr_points_save)-1)];
+%Rho = [rho_0, zeros(m, ceil(t_end/k/nr_points_save)-1)];
+%Mom = [mom_0, zeros(m, ceil(t_end/k/nr_points_save)-1)];
+%Ene = [E_0, zeros(m, ceil(t_end/k/nr_points_save)-1)];
+
+%renaming initial conditions for the for-loop
+rho = rho_0;
+mom = mom_0;
+E = E_0;
+
+%setting j=1 to add points to the variables lists
 j = 1;
 for i = 1:length(t)-1
 
@@ -34,16 +45,21 @@ for i = 1:length(t)-1
     E = new_vars(:, 3);
         
     if mod(i, nr_points_save) == 1
-        %Work(:, j+1) = mom.^2./(2*rho);
-        Rho(:, j+1) = rho;
+        Work(:, j+1) = mom.^2./(2*rho);
+        %Rho(:, j+1) = rho;
+        %Mom(:, j+1) = mom;
+        %Ene(:, j+1) = E;
         j = j+1;
     end
     
         
 end
 
-%Work = [Work(end,:) ; Work];
-Rho = [Rho(end,:) ; Rho];
+%Setting the zeroths values equal to the end values due to periodicity
+Work = [Work(end,:) ; Work];
+%Rho = [Rho(end,:) ; Rho];
+%Mom = [Mom(end,:) ; Mom];
+%Ene = [Ene(end,:) ; Ene];
 
 %{
 RHO = rho;
@@ -89,6 +105,8 @@ function [flux] = NSS(vars)
     
     flux = [A1 + B1, A2 + B2, A3 + B3];
 
+    %flux = [A1, A2, A3];
+    
 end
 
 end

@@ -74,6 +74,7 @@ function [flux] = NS(vars)
     rho = vars(:, 1);
     mom = vars(:, 2);
     E = vars(:, 3);
+    
     p = R/c_V*(E - mom.^2./(2*rho));
     T = p/R;
     

@@ -1,16 +1,22 @@
-function [W, CFL, error, h] = SpectralCompressibleNSTest(m, epsilon, t_end, x_end, k, c_p, c_V, kappa, rho_sol, mom_sol, E_sol, R1, R2, R3)
+function [CFL, RHO_error,  MOM_error , E_error, h] = SpectralCompressibleNSTest(m, epsilon, t_end, x_end, k, c_p, c_V, kappa, rho_sol, mom_sol, E_sol, R1, R2, R3)
 
 %h = 1/(m-1);       %space step
 
 t = 0:k:t_end;
 
-h = 2*pi/m;    %individual space points on the grid
+h = 1/m;    %individual space points on the grid
 x = h*(1:m);
+
+s = 2*pi/x_end;
 
 CFL = k/(h^2);
 
-Q1 = SpectralD0(m, h);
-Q2 = SpectralD2(m, h);
+%[~, Q1, ~, ~] = PeriodicD0(m, h);
+%[~, Q2, ~, ~] = PeriodicD2(m, h);
+%Q1 = FD0(m, h, 4);
+%Q2 = FD02(m, h, 4);
+Q1 = SpectralD0(m, s);
+Q2 = SpectralD2(m, s);
 
 %Initial conditions and Primitive variables
 R = c_p - c_V;
@@ -36,13 +42,19 @@ for i = 1:length(t)-1
 end
 
 RHO = [RHO(end, :) ; RHO];
-
-W = RHO;
+MOM = [MOM(end, :) ; MOM];
+E = [E(end, :) ; E];
 
 ex = [0, x];
 
-error = RHO(:,end) - rho_sol(ex, t_end)';
-error = sqrt(h*error'*error);
+RHO_error = RHO(:,end) - rho_sol(ex, t_end)';
+RHO_error = sqrt(h*RHO_error'*RHO_error);
+
+MOM_error = MOM(:,end) - mom_sol(ex, t_end)';
+MOM_error = sqrt(h*MOM_error'*MOM_error);
+
+E_error = E(:,end) - E_sol(ex, t_end)';
+E_error = sqrt(h*E_error'*E_error);
 
 function [w] = RK4(vars, c_V, R, kappa, k, x, t)
     
@@ -60,8 +72,9 @@ function [flux] = NS(vars, c_V, R, kappa, x, t)
     rho = vars(:, 1);
     mom = vars(:, 2);
     E = vars(:, 3);
+    
     p = R/c_V*(E - mom.^2./(2*rho));
-    T = p/R;
+    T = p./(rho*R);
     
     A1 = -Q1*mom;
     
