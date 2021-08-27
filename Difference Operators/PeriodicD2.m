@@ -1,6 +1,9 @@
 function [D22, D24, D26, D28] = PeriodicD2(m,h)
 
 
+
+
+
 %Difference Operators
 %Creates second order derivative with periodic boundary conditions
 %D02 = 2nd order
