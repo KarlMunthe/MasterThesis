@@ -9,5 +9,5 @@ The folder named DifferenceMatrices contains functions that will return spectral
 The folder named AcousticCode contains the code needed to compare the Navier-Stokes-Svärd equations with Navier-Stokes equations. SpectralNS and SpectralNSS solve
 the acoustic attenuation problem of the NS and NSS equations respectively.
 
-The folder named BoundaryLayerCode contains the code to solve the [Blasius ODE](https://en.wikipedia.org/wiki/Blasius_boundary_layer#Blasius_equation_-_first-order_boundary_layer) 
+The folder named BoundaryLayerCode contains the code to solve the [Blasius ODE](https://en.wikipedia.org/wiki/Blasius_boundary_layer#Blasius_equation_-_first-order_boundary_layer) by means of the [shooting method](https://en.wikipedia.org/wiki/Shooting_method)
 and the boundary layer for the two dimensional NSS equations.
